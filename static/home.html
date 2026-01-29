@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ваши файлы</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h2>📁 Управление файлами</h2>
+        <button id="logoutBtn" class="logout-btn">🚪 Выйти</button>
+    </div>
+
+    <hr>
+
+    <div class="upload-section">
+        <h3>📤 Загрузить новый файл</h3>
+        <input type="file" id="fileInput">
+        <button id="uploadBtn" class="upload-btn">📤 Загрузить файл</button>
+        <div id="uploadMessage" style="display: none;"></div>
+    </div>
+
+    <hr>
+
+    <h3>📄 Ваши файлы</h3>
+    <div id="fileList">
+        <div class="loading">Загрузка файлов...</div>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem("token");
+    if (!token) {
+        alert("Требуется авторизация");
+        window.location.href = "/login";
+    }
+
+    document.getElementById("logoutBtn").onclick = () => {
+        if (confirm("Вы уверены, что хотите выйти?")) {
+            localStorage.removeItem("token");
+            window.location.href = "/login";
+        }
+    };
+
+    document.getElementById("uploadBtn").onclick = async () => {
+        const fileInput = document.getElementById("fileInput");
+        const file = fileInput.files[0];
+
+        if (!file) {
+            showMessage("error", "Пожалуйста, выберите файл");
+            return;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+            showMessage("error", "Файл слишком большой. Максимальный размер: 10MB");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const res = await fetch("/api/files/upload", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (res.ok) {
+                const uploadedFile = await res.json();
+                showMessage("success", `Файл "${uploadedFile.filename}" успешно загружен!`);
+                fileInput.value = "";
+                loadFiles();
+            } else {
+                const error = await res.json();
+                showMessage("error", `Ошибка загрузки: ${error.message || "Неизвестная ошибка"}`);
+            }
+        } catch (error) {
+            showMessage("error", "Ошибка сети. Проверьте подключение.");
+        }
+    };
+
+    async function loadFiles() {
+        const container = document.getElementById("fileList");
+        container.innerHTML = '<div class="loading">Загрузка файлов...</div>';
+
+        try {
+            const res = await fetch("/api/files", {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            if (!res.ok) {
+                if (res.status === 401) {
+                    localStorage.removeItem("token");
+                    window.location.href = "/login";
+                    return;
+                }
+                throw new Error(`HTTP ${res.status}`);
+            }
+
+            const files = await res.json();
+
+            if (files.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>📭 У вас пока нет файлов</p>
+                        <p>Начните с загрузки первого файла</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            files.forEach(file => {
+                const date = new Date(file.created_at);
+                const formattedDate = date.toLocaleDateString('ru-RU', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                html += `
+                    <div class="file-item">
+                        <div class="file-info">
+                            <div class="file-name">${escapeHtml(file.filename)}</div>
+                            <div class="file-meta">
+                                📦 ${formatBytes(file.size)} |
+                                📅 ${formattedDate} |
+                                ID: ${file.id}
+                            </div>
+                        </div>
+                        <div class="file-actions">
+                            <button onclick="downloadFile(${file.id}, '${escapeHtml(file.filename)}')"
+                                    class="download-btn"
+                                    title="Скачать файл">
+                                📥 Скачать
+                            </button>
+                            <button class="delete-btn"
+                                    onclick="deleteFile(${file.id}, '${escapeHtml(file.filename)}')"
+                                    title="Удалить файл">
+                                🗑️ Удалить
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        } catch (error) {
+            container.innerHTML = `
+                <div class="error">
+                    Ошибка загрузки файлов: ${error.message}<br>
+                    <button onclick="loadFiles()">Повторить</button>
+                </div>
+            `;
+        }
+    }
+
+    async function downloadFile(id, filename) {
+        try {
+            const response = await fetch(`/api/files/${id}/download`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            });
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    alert("Сессия истекла. Пожалуйста, войдите снова.");
+                    localStorage.removeItem("token");
+                    window.location.href = "/login";
+                    return;
+                }
+
+                const error = await response.json();
+                alert('Ошибка скачивания: ' + error.message);
+                return;
+            }
+
+            const blob = await response.blob();
+
+            if (blob.size === 0) {
+                alert('Файл пустой или не найден');
+                return;
+            }
+
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+        } catch (error) {
+            console.error('Ошибка скачивания:', error);
+            alert('Ошибка скачивания файла: ' + error.message);
+        }
+    }
+
+    async function deleteFile(id, filename) {
+        if (!confirm(`Вы уверены, что хотите удалить файл "${filename}"?`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/files/${id}`, {
+                method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            if (res.ok) {
+                showMessage("success", `Файл "${filename}" успешно удалён`);
+                loadFiles();
+            } else {
+                const error = await res.json();
+                showMessage("error", `Ошибка удаления: ${error.message || "Неизвестная ошибка"}`);
+            }
+        } catch (error) {
+            showMessage("error", "Ошибка сети при удалении файла");
+        }
+    }
+
+    function showMessage(type, text) {
+        const messageDiv = document.getElementById("uploadMessage");
+        messageDiv.innerHTML = `<div class="${type}">${text}</div>`;
+        messageDiv.style.display = "block";
+
+        setTimeout(() => {
+            messageDiv.style.display = "none";
+        }, 5000);
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    loadFiles();
+</script>
+</body>
+</html>

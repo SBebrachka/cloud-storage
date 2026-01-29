@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Главная</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="container">
+    <h2>Облачное хранилище</h2>
+
+    <p>Вы вошли в систему.</p>
+
+    <button id="logoutBtn">Выйти</button>
+</div>
+
+<script>
+    document.getElementById("logoutBtn").onclick = function () {
+        localStorage.removeItem("token");
+        window.location.href = "/login";
+    };
+</script>
+
+</body>
+</html>

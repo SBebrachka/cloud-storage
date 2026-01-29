@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Регистрация</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="container">
+    <h2>Регистрация</h2>
+
+    <form id="registerForm">
+        <input id="name" type="text" placeholder="Имя" required>
+        <input id="username" type="text" placeholder="Логин" required>
+        <input id="password" type="password" placeholder="Пароль" required>
+        <button type="submit">Создать аккаунт</button>
+    </form>
+
+    <a href="/login">Уже есть аккаунт?</a>
+</div>
+
+<script>
+    document.getElementById("registerForm").addEventListener("submit", async function (e) {
+        e.preventDefault();
+
+        const data = {
+            name: document.getElementById("name").value,
+            username: document.getElementById("username").value,
+            password: document.getElementById("password").value
+        };
+
+        const response = await fetch("/auth/sign-up", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            alert("Регистрация успешна!");
+            window.location.href = "/login";
+        } else {
+            const error = await response.json();
+            alert("Ошибка регистрации. Пользователь с таким логином уже существует, попробуйте выбрать другой.");
+        }
+    });
+</script>
+
+</body>
+</html>
