@@ -25,6 +25,7 @@ type File interface {
 	GetByID(userId, fileId int) (model.File, error)
 	Create(userId int, file model.File) (model.File, error)
 	Delete(userId, fileId int) error
+	Search(userId int, query string) ([]model.File, error)
 }
 
 // Основная структура репозитория

@@ -10,9 +10,9 @@
 <div class="container">
     <div class="header">
         <h2>📁 Управление файлами</h2>
-        <button id="logoutBtn" class="logout-btn">🚪 Выйти</button>
+        <p id="userName"></p>
+        <button onclick="logout()">Выйти</button>
     </div>
-
     <hr>
 
     <div class="upload-section">
@@ -23,7 +23,11 @@
     </div>
 
     <hr>
-
+    <div class="search-section">
+        <input type="text" id="searchInput" placeholder="Поиск файла по названию">
+        <button id="searchBtn">Найти</button>
+        <button id="resetSearchBtn">Сбросить</button>
+    </div>
     <h3>📄 Ваши файлы</h3>
     <div id="fileList">
         <div class="loading">Загрузка файлов...</div>
@@ -36,6 +40,11 @@
         alert("Требуется авторизация");
         window.location.href = "/login";
     }
+    const userName = localStorage.getItem("userName");
+    console.log("userName =", userName);
+
+    document.getElementById("userName").textContent =
+        userName ? `Пользователь: ${userName}` : "Имя пользователя не найдено";
 
     document.getElementById("logoutBtn").onclick = () => {
         if (confirm("Вы уверены, что хотите выйти?")) {
@@ -62,7 +71,10 @@
         formData.append("file", file);
 
         try {
-            const res = await fetch("/api/files/upload", {
+            const search = document.getElementById("searchInput").value.trim();
+            const url = search ? `/api/files?search=${encodeURIComponent(search)}` : "/api/files";
+
+            const res = await fetch(url, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`
@@ -83,7 +95,18 @@
             showMessage("error", "Ошибка сети. Проверьте подключение.");
         }
     };
+    document.getElementById("searchBtn").onclick = loadFiles;
 
+    document.getElementById("resetSearchBtn").onclick = () => {
+        document.getElementById("searchInput").value = "";
+        loadFiles();
+    };
+
+    document.getElementById("searchInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            loadFiles();
+        }
+    });
     async function loadFiles() {
         const container = document.getElementById("fileList");
         container.innerHTML = '<div class="loading">Загрузка файлов...</div>';
@@ -259,6 +282,12 @@
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+    function logout() {
+        localStorage.removeItem("token");
+        localStorage.removeItem("userName");
+
+        window.location.href = "/login";
     }
 
     loadFiles();

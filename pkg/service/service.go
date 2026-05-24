@@ -11,7 +11,7 @@ import (
 // Интерфейсы
 type Authorization interface {
 	CreateUser(user pet3.User) (int, error)
-	GenerateToken(username, password string) (string, error)
+	GenerateToken(username, password string) (string, pet3.User, error)
 	ParseToken(token string) (int, error)
 }
 
@@ -28,6 +28,7 @@ type File interface {
 	Upload(userID int, filename string, size int64, file io.Reader) (model.File, error)
 	Delete(userID, fileID int) error
 	GetByID(userID, fileID int) (model.File, error)
+	Search(userId int, query string) ([]model.File, error)
 }
 
 // Основная структура сервиса

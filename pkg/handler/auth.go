@@ -34,12 +34,17 @@ func (h *Handler) signIn(c *gin.Context) {
 		newErrorResponse(c, http.StatusBadRequest, "invalid input")
 		return
 	}
-	token, err := h.services.Authorization.GenerateToken(input.Username, input.Password)
+	token, user, err := h.services.Authorization.GenerateToken(input.Username, input.Password)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 	c.JSON(http.StatusOK, map[string]interface{}{
 		"token": token,
+		"user": map[string]interface{}{
+			"id":       user.Id,
+			"name":     user.Name,
+			"username": user.Username,
+		},
 	})
 }

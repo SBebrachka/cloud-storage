@@ -80,3 +80,7 @@ func (s *FileService) Delete(userId, fileId int) error {
 func (s *FileService) GetByID(userId, id int) (model.File, error) {
 	return s.repo.GetByID(userId, id)
 }
+
+func (s *FileService) Search(userId int, query string) ([]model.File, error) {
+	return s.repo.Search(userId, query)
+}

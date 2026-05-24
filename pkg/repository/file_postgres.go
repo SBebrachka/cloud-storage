@@ -70,3 +70,16 @@ func (r *FilePostgres) Delete(userId, fileId int) error {
 
 	return nil
 }
+func (r *FilePostgres) Search(userId int, search string) ([]model.File, error) {
+	var files []model.File
+
+	query := `
+		SELECT id, user_id, filename, size, path, created_at
+		FROM files
+		WHERE user_id = $1 AND filename ILIKE '%' || $2 || '%'
+		ORDER BY created_at DESC
+	`
+
+	err := r.db.Select(&files, query, userId, search)
+	return files, err
+}

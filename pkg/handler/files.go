@@ -9,15 +9,21 @@ import (
 
 // Функции для работы с файлами
 func (h *Handler) getAllFiles(c *gin.Context) {
-	// Получаем ID пользователя из контекста
 	userId, err := getUserId(c)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, "failed to get user id: "+err.Error())
 		return
 	}
 
-	// Получаем файлы из сервиса
-	files, err := h.services.File.GetAll(userId)
+	search := c.Query("search")
+
+	var files interface{}
+	if search != "" {
+		files, err = h.services.File.Search(userId, search)
+	} else {
+		files, err = h.services.File.GetAll(userId)
+	}
+
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, "failed to get files: "+err.Error())
 		return
