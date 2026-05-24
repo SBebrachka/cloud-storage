@@ -3,291 +3,466 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ваши файлы</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <title>Управление файлами</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #050a18;
+            color: #e8f0ff;
+            min-height: 100vh;
+            padding: 24px 16px 40px;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                    radial-gradient(ellipse 80% 50% at 10% 0%, rgba(79,163,255,0.09) 0%, transparent 55%),
+                    radial-gradient(ellipse 60% 40% at 90% 100%, rgba(168,85,247,0.09) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .wrap {
+            position: relative;
+            z-index: 1;
+            max-width: 860px;
+            margin: 0 auto;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(14px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: rgba(8,18,40,0.88);
+            border: 1px solid rgba(80,160,255,0.25);
+            border-radius: 16px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 0 50px rgba(79,163,255,0.07), 0 16px 48px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+
+        /* ── Dots bar ── */
+        .dots-bar {
+            display: flex; gap: 6px;
+            padding: 12px 20px 0;
+        }
+        .dots-bar i { display: block; width: 11px; height: 11px; border-radius: 50%; }
+        .dots-bar i:nth-child(1) { background: rgba(255,90,90,0.6); }
+        .dots-bar i:nth-child(2) { background: rgba(255,200,50,0.5); }
+        .dots-bar i:nth-child(3) { background: rgba(79,163,255,0.6); }
+
+        /* ── Topbar ── */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 24px;
+            border-bottom: 1px solid rgba(80,160,255,0.12);
+        }
+
+        .topbar-left { display: flex; align-items: center; gap: 10px; }
+
+        .topbar-title { font-size: 1.05rem; font-weight: 600; color: #e8f0ff; }
+
+        .topbar-user {
+            font-size: 0.78rem;
+            color: rgba(180,200,255,0.5);
+            font-family: monospace;
+        }
+
+        .btn-logout {
+            display: flex; align-items: center; gap: 6px;
+            background: transparent;
+            border: 1px solid rgba(255,77,109,0.3);
+            border-radius: 8px;
+            color: rgba(255,77,109,0.8);
+            font-family: inherit; font-size: 0.82rem;
+            padding: 7px 14px; cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+        }
+        .btn-logout:hover { background: rgba(255,77,109,0.1); border-color: #ff4d6d; color: #ff4d6d; }
+
+        /* ── Upload section ── */
+        .section {
+            padding: 18px 24px;
+            border-bottom: 1px solid rgba(80,160,255,0.1);
+        }
+
+        .section-label {
+            font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; color: rgba(180,200,255,0.6);
+            margin-bottom: 12px;
+        }
+
+        .upload-row { display: flex; gap: 10px; align-items: flex-start; }
+
+        .file-label-btn {
+            flex: 1;
+            display: flex; align-items: center; gap: 8px;
+            background: rgba(10,22,50,0.8);
+            border: 1px solid rgba(80,160,255,0.2);
+            border-radius: 8px;
+            padding: 11px 14px;
+            cursor: pointer;
+            font-size: 0.88rem;
+            color: rgba(180,200,255,0.5);
+            transition: border-color 0.2s;
+        }
+        .file-label-btn:hover { border-color: rgba(79,163,255,0.45); }
+
+        #fileInput { display: none; }
+
+        .hint { font-size: 0.72rem; color: rgba(180,200,255,0.35); margin-top: 5px; font-family: monospace; }
+
+        .btn-upload {
+            background: linear-gradient(135deg, #4fa3ff 0%, #a855f7 100%);
+            border: none; border-radius: 8px; color: #fff;
+            font-family: inherit; font-size: 0.88rem; font-weight: 600;
+            padding: 11px 20px; cursor: pointer; white-space: nowrap;
+            box-shadow: 0 4px 16px rgba(79,163,255,0.2);
+            transition: opacity 0.2s, transform 0.15s;
+        }
+        .btn-upload:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-upload:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        #uploadMsg { display: none; margin-top: 10px; font-size: 0.83rem; }
+        #uploadMsg .ok  { color: #22d3a5; background: rgba(34,211,165,0.08); border: 1px solid rgba(34,211,165,0.2); padding: 8px 12px; border-radius: 8px; }
+        #uploadMsg .err { color: #ff4d6d; background: rgba(255,77,109,0.08); border: 1px solid rgba(255,77,109,0.2); padding: 8px 12px; border-radius: 8px; }
+
+        /* ── Search ── */
+        .search-row { display: flex; gap: 8px; align-items: center; }
+
+        .search-wrap { flex: 1; position: relative; }
+
+        #searchInput {
+            width: 100%;
+            background: rgba(10,22,50,0.8);
+            border: 1px solid rgba(80,160,255,0.2);
+            border-radius: 8px;
+            color: #e8f0ff; font-family: inherit; font-size: 0.88rem;
+            padding: 10px 12px 10px 36px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        #searchInput::placeholder { color: rgba(180,200,255,0.4); }
+        #searchInput:focus { border-color: rgba(79,163,255,0.55); }
+
+        .search-ico {
+            position: absolute; left: 11px; top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px; opacity: 0.4; pointer-events: none;
+        }
+
+        .btn-sec {
+            background: transparent;
+            border: 1px solid rgba(80,160,255,0.3);
+            border-radius: 8px; color: #4fa3ff;
+            font-family: inherit; font-size: 0.83rem;
+            padding: 9px 16px; cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-sec:hover { background: rgba(79,163,255,0.08); }
+
+        /* ── Files table ── */
+        .files-section { padding: 0; }
+
+        .files-head {
+            display: grid;
+            grid-template-columns: minmax(0,2fr) 90px 150px 130px;
+            gap: 8px;
+            padding: 11px 24px;
+            border-bottom: 1px solid rgba(80,160,255,0.1);
+            font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; color: rgba(180,200,255,0.45);
+        }
+        .files-head .act { text-align: right; }
+
+        .file-row {
+            display: grid;
+            grid-template-columns: minmax(0,2fr) 90px 150px 130px;
+            gap: 8px;
+            padding: 12px 24px;
+            border-bottom: 1px solid rgba(80,160,255,0.07);
+            align-items: center;
+            transition: background 0.15s;
+        }
+        .file-row:last-child { border-bottom: none; }
+        .file-row:hover { background: rgba(79,163,255,0.04); }
+
+        .fname { display: flex; align-items: center; gap: 10px; min-width: 0; }
+
+        .fext {
+            width: 32px; height: 32px; border-radius: 7px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.65rem; font-weight: 800; font-family: monospace;
+            flex-shrink: 0; letter-spacing: 0.02em;
+        }
+        .ext-pdf  { background: rgba(239,68,68,0.15);  color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
+        .ext-xlsx { background: rgba(34,197,94,0.15);  color: #22c55e; border: 1px solid rgba(34,197,94,0.2); }
+        .ext-pptx { background: rgba(251,146,60,0.15); color: #fb923c; border: 1px solid rgba(251,146,60,0.2); }
+        .ext-docx { background: rgba(79,163,255,0.15); color: #4fa3ff; border: 1px solid rgba(79,163,255,0.2); }
+        .ext-zip  { background: rgba(168,85,247,0.15); color: #a855f7; border: 1px solid rgba(168,85,247,0.2); }
+        .ext-other{ background: rgba(100,116,139,0.12);color: #94a3b8; border: 1px solid rgba(100,116,139,0.2); }
+
+        .fname-text {
+            font-size: 0.87rem; color: #e8f0ff;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+
+        .fsize, .fdate {
+            font-size: 0.8rem; color: rgba(180,200,255,0.5); font-family: monospace;
+        }
+
+        .fact { display: flex; gap: 4px; justify-content: flex-end; align-items: center; }
+
+        .btn-dl {
+            background: transparent; border: none;
+            color: #4fa3ff; font-family: inherit; font-size: 0.8rem;
+            padding: 5px 9px; border-radius: 6px; cursor: pointer;
+            transition: background 0.15s;
+        }
+        .btn-dl:hover { background: rgba(79,163,255,0.1); }
+
+        .btn-del {
+            background: transparent; border: none;
+            color: #ff4d6d; font-family: inherit; font-size: 0.8rem;
+            padding: 5px 9px; border-radius: 6px; cursor: pointer;
+            transition: background 0.15s;
+        }
+        .btn-del:hover { background: rgba(255,77,109,0.1); }
+
+        /* ── States ── */
+        .state {
+            text-align: center; padding: 40px 24px;
+            color: rgba(180,200,255,0.45); font-size: 0.88rem;
+        }
+
+        .spinner {
+            display: block; width: 28px; height: 28px;
+            border: 2px solid rgba(80,160,255,0.15);
+            border-top-color: #4fa3ff;
+            border-radius: 50%; margin: 14px auto 0;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
 </head>
 <body>
-<div class="container">
-    <div class="header">
-        <h2>📁 Управление файлами</h2>
-        <p id="userName"></p>
-        <button onclick="logout()">Выйти</button>
-    </div>
-    <hr>
+<div class="wrap">
+    <div class="card">
 
-    <div class="upload-section">
-        <h3>📤 Загрузить новый файл</h3>
-        <input type="file" id="fileInput">
-        <button id="uploadBtn" class="upload-btn">📤 Загрузить файл</button>
-        <div id="uploadMessage" style="display: none;"></div>
-    </div>
+        <!-- Window dots -->
+        <div class="dots-bar"><i></i><i></i><i></i></div>
 
-    <hr>
-    <div class="search-section">
-        <input type="text" id="searchInput" placeholder="Поиск файла по названию">
-        <button id="searchBtn">Найти</button>
-        <button id="resetSearchBtn">Сбросить</button>
-    </div>
-    <h3>📄 Ваши файлы</h3>
-    <div id="fileList">
-        <div class="loading">Загрузка файлов...</div>
+        <!-- Topbar -->
+        <div class="topbar">
+            <div class="topbar-left">
+                <span style="font-size:18px;">📁</span>
+                <span class="topbar-title">Управление файлами</span>
+                <span class="topbar-user" id="userName"></span>
+            </div>
+            <button class="btn-logout" onclick="logout()">⬡ Выйти</button>
+        </div>
+
+        <!-- Upload -->
+        <div class="section">
+            <div class="section-label">Загрузить новый файл</div>
+            <div class="upload-row">
+                <div>
+                    <label class="file-label-btn" for="fileInput">
+                        <span>⬆</span>
+                        <span id="fileLabel">Выберите файл</span>
+                    </label>
+                    <input type="file" id="fileInput" onchange="onFilePick(this)">
+                    <div class="hint">Максимальный размер: 10 МБ</div>
+                </div>
+                <button class="btn-upload" id="uploadBtn" onclick="doUpload()">Загрузить файл</button>
+            </div>
+            <div id="uploadMsg"></div>
+        </div>
+
+        <!-- Search -->
+        <div class="section">
+            <div class="search-row">
+                <div class="search-wrap">
+                    <span class="search-ico">🔍</span>
+                    <input type="text" id="searchInput" placeholder="Поиск по названию...">
+                </div>
+                <button class="btn-sec" onclick="loadFiles()">Найти</button>
+                <button class="btn-sec" onclick="resetSearch()">Сбросить</button>
+            </div>
+        </div>
+
+        <!-- Files -->
+        <div class="files-section">
+            <div class="files-head">
+                <div>Имя файла</div>
+                <div>Размер</div>
+                <div>Дата загрузки</div>
+                <div class="act">Действия</div>
+            </div>
+            <div id="fileList">
+                <div class="state">Загрузка...<span class="spinner"></span></div>
+            </div>
+        </div>
+
     </div>
 </div>
 
 <script>
-    const token = localStorage.getItem("token");
-    if (!token) {
-        alert("Требуется авторизация");
-        window.location.href = "/login";
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = '/login';
+
+    const uname = localStorage.getItem('userName');
+    if (uname) document.getElementById('userName').textContent = '· ' + uname;
+
+    document.getElementById('searchInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter') loadFiles();
+    });
+
+    function onFilePick(input) {
+        document.getElementById('fileLabel').textContent =
+            input.files[0] ? input.files[0].name : 'Выберите файл';
     }
-    const userName = localStorage.getItem("userName");
-    console.log("userName =", userName);
 
-    document.getElementById("userName").textContent =
-        userName ? `Пользователь: ${userName}` : "Имя пользователя не найдено";
+    function resetSearch() {
+        document.getElementById('searchInput').value = '';
+        loadFiles();
+    }
 
-    document.getElementById("logoutBtn").onclick = () => {
-        if (confirm("Вы уверены, что хотите выйти?")) {
-            localStorage.removeItem("token");
-            window.location.href = "/login";
-        }
-    };
+    async function doUpload() {
+        const fi = document.getElementById('fileInput');
+        const file = fi.files[0];
+        if (!file) { showMsg('err', 'Выберите файл'); return; }
+        if (file.size > 10 * 1024 * 1024) { showMsg('err', 'Файл больше 10 МБ'); return; }
 
-    document.getElementById("uploadBtn").onclick = async () => {
-        const fileInput = document.getElementById("fileInput");
-        const file = fileInput.files[0];
+        const btn = document.getElementById('uploadBtn');
+        btn.textContent = 'Загрузка...'; btn.disabled = true;
 
-        if (!file) {
-            showMessage("error", "Пожалуйста, выберите файл");
-            return;
-        }
-
-        if (file.size > 10 * 1024 * 1024) {
-            showMessage("error", "Файл слишком большой. Максимальный размер: 10MB");
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append("file", file);
-
+        const fd = new FormData();
+        fd.append('file', file);
         try {
-            const search = document.getElementById("searchInput").value.trim();
-            const url = search ? `/api/files?search=${encodeURIComponent(search)}` : "/api/files";
-
-            const res = await fetch(url, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                },
-                body: formData
+            const res = await fetch('/api/files', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token },
+                body: fd
             });
-
             if (res.ok) {
-                const uploadedFile = await res.json();
-                showMessage("success", `Файл "${uploadedFile.filename}" успешно загружен!`);
-                fileInput.value = "";
+                const f = await res.json();
+                showMsg('ok', `Файл "${f.filename}" загружен!`);
+                fi.value = '';
+                document.getElementById('fileLabel').textContent = 'Выберите файл';
                 loadFiles();
             } else {
-                const error = await res.json();
-                showMessage("error", `Ошибка загрузки: ${error.message || "Неизвестная ошибка"}`);
+                const e = await res.json();
+                showMsg('err', 'Ошибка: ' + (e.message || 'неизвестная'));
             }
-        } catch (error) {
-            showMessage("error", "Ошибка сети. Проверьте подключение.");
-        }
-    };
-    document.getElementById("searchBtn").onclick = loadFiles;
+        } catch { showMsg('err', 'Ошибка сети'); }
+        finally { btn.textContent = 'Загрузить файл'; btn.disabled = false; }
+    }
 
-    document.getElementById("resetSearchBtn").onclick = () => {
-        document.getElementById("searchInput").value = "";
-        loadFiles();
-    };
-
-    document.getElementById("searchInput").addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-            loadFiles();
-        }
-    });
     async function loadFiles() {
-        const container = document.getElementById("fileList");
-        container.innerHTML = '<div class="loading">Загрузка файлов...</div>';
+        const container = document.getElementById('fileList');
+        container.innerHTML = '<div class="state">Загрузка...<span class="spinner"></span></div>';
+
+        const q = document.getElementById('searchInput').value.trim();
+        const url = q ? `/api/files?search=${encodeURIComponent(q)}` : '/api/files';
 
         try {
-            const res = await fetch("/api/files", {
-                method: "GET",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                }
+            const res = await fetch(url, {
+                headers: { 'Authorization': 'Bearer ' + token }
             });
-
             if (!res.ok) {
-                if (res.status === 401) {
-                    localStorage.removeItem("token");
-                    window.location.href = "/login";
-                    return;
-                }
-                throw new Error(`HTTP ${res.status}`);
+                if (res.status === 401) { localStorage.removeItem('token'); window.location.href = '/login'; return; }
+                throw new Error('HTTP ' + res.status);
             }
-
             const files = await res.json();
-
-            if (files.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <p>📭 У вас пока нет файлов</p>
-                        <p>Начните с загрузки первого файла</p>
-                    </div>
-                `;
+            if (!files || files.length === 0) {
+                container.innerHTML = '<div class="state">📭 Файлов пока нет.<br>Загрузите первый файл!</div>';
                 return;
             }
-
-            let html = '';
-            files.forEach(file => {
-                const date = new Date(file.created_at);
-                const formattedDate = date.toLocaleDateString('ru-RU', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-
-                html += `
-                    <div class="file-item">
-                        <div class="file-info">
-                            <div class="file-name">${escapeHtml(file.filename)}</div>
-                            <div class="file-meta">
-                                📦 ${formatBytes(file.size)} |
-                                📅 ${formattedDate} |
-                                ID: ${file.id}
-                            </div>
-                        </div>
-                        <div class="file-actions">
-                            <button onclick="downloadFile(${file.id}, '${escapeHtml(file.filename)}')"
-                                    class="download-btn"
-                                    title="Скачать файл">
-                                📥 Скачать
-                            </button>
-                            <button class="delete-btn"
-                                    onclick="deleteFile(${file.id}, '${escapeHtml(file.filename)}')"
-                                    title="Удалить файл">
-                                🗑️ Удалить
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
-
-            container.innerHTML = html;
-        } catch (error) {
-            container.innerHTML = `
-                <div class="error">
-                    Ошибка загрузки файлов: ${error.message}<br>
-                    <button onclick="loadFiles()">Повторить</button>
-                </div>
-            `;
+            container.innerHTML = files.map(f => {
+                const ext = (f.filename.split('.').pop() || '').toLowerCase();
+                const cls = ['pdf','xlsx','pptx','docx','zip'].includes(ext) ? 'ext-'+ext : 'ext-other';
+                const d = new Date(f.created_at);
+                const date = d.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'})
+                    + ' ' + d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+                return `
+                <div class="file-row">
+                  <div class="fname">
+                    <div class="fext ${cls}">${ext.toUpperCase().slice(0,4)}</div>
+                    <span class="fname-text" title="${esc(f.filename)}">${esc(f.filename)}</span>
+                  </div>
+                  <div class="fsize">${fmtBytes(f.size)}</div>
+                  <div class="fdate">${date}</div>
+                  <div class="fact">
+                    <button class="btn-dl" onclick="dlFile(${f.id},'${esc(f.filename)}')">⬇ Скачать</button>
+                    <button class="btn-del" onclick="delFile(${f.id},'${esc(f.filename)}')">✕ Удалить</button>
+                  </div>
+                </div>`;
+            }).join('');
+        } catch(e) {
+            container.innerHTML = `<div class="state">Ошибка: ${e.message}<br><button class="btn-sec" onclick="loadFiles()" style="margin-top:12px;">Повторить</button></div>`;
         }
     }
 
-    async function downloadFile(id, filename) {
+    async function dlFile(id, name) {
         try {
-            const response = await fetch(`/api/files/${id}/download`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': 'Bearer ' + token
-                }
+            const res = await fetch(`/api/files/${id}/download`, {
+                headers: { 'Authorization': 'Bearer ' + token }
             });
-
-            if (!response.ok) {
-                if (response.status === 401) {
-                    alert("Сессия истекла. Пожалуйста, войдите снова.");
-                    localStorage.removeItem("token");
-                    window.location.href = "/login";
-                    return;
-                }
-
-                const error = await response.json();
-                alert('Ошибка скачивания: ' + error.message);
-                return;
-            }
-
-            const blob = await response.blob();
-
-            if (blob.size === 0) {
-                alert('Файл пустой или не найден');
-                return;
-            }
-
-            const url = window.URL.createObjectURL(blob);
+            if (!res.ok) { showMsg('err', 'Ошибка скачивания'); return; }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-
-        } catch (error) {
-            console.error('Ошибка скачивания:', error);
-            alert('Ошибка скачивания файла: ' + error.message);
-        }
+            a.href = url; a.download = name;
+            document.body.appendChild(a); a.click();
+            URL.revokeObjectURL(url); a.remove();
+        } catch { showMsg('err', 'Ошибка сети'); }
     }
 
-    async function deleteFile(id, filename) {
-        if (!confirm(`Вы уверены, что хотите удалить файл "${filename}"?`)) {
-            return;
-        }
-
+    async function delFile(id, name) {
+        if (!confirm(`Удалить "${name}"?`)) return;
         try {
             const res = await fetch(`/api/files/${id}`, {
-                method: "DELETE",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                }
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + token }
             });
-
-            if (res.ok) {
-                showMessage("success", `Файл "${filename}" успешно удалён`);
-                loadFiles();
-            } else {
-                const error = await res.json();
-                showMessage("error", `Ошибка удаления: ${error.message || "Неизвестная ошибка"}`);
-            }
-        } catch (error) {
-            showMessage("error", "Ошибка сети при удалении файла");
-        }
+            if (res.ok) { showMsg('ok', `"${name}" удалён`); loadFiles(); }
+            else { const e = await res.json(); showMsg('err', 'Ошибка: ' + (e.message||'')); }
+        } catch { showMsg('err', 'Ошибка сети'); }
     }
 
-    function showMessage(type, text) {
-        const messageDiv = document.getElementById("uploadMessage");
-        messageDiv.innerHTML = `<div class="${type}">${text}</div>`;
-        messageDiv.style.display = "block";
-
-        setTimeout(() => {
-            messageDiv.style.display = "none";
-        }, 5000);
+    function showMsg(type, text) {
+        const el = document.getElementById('uploadMsg');
+        el.innerHTML = `<div class="${type === 'ok' ? 'ok' : 'err'}">${text}</div>`;
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 5000);
     }
 
-    function formatBytes(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    function fmtBytes(b) {
+        if (!b) return '0 Б';
+        const k = 1024, s = ['Б','КБ','МБ','ГБ'];
+        const i = Math.floor(Math.log(b) / Math.log(k));
+        return (b / Math.pow(k,i)).toFixed(1) + ' ' + s[i];
     }
 
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+    function esc(t) {
+        const d = document.createElement('div'); d.textContent = t; return d.innerHTML;
     }
+
     function logout() {
-        localStorage.removeItem("token");
-        localStorage.removeItem("userName");
-
-        window.location.href = "/login";
+        localStorage.removeItem('token');
+        localStorage.removeItem('userName');
+        window.location.href = '/login';
     }
 
     loadFiles();
